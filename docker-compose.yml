@@ -1,0 +1,16 @@
+services:
+  lumina:
+    build:
+      context: .
+    image: ghcr.io/CHANGE_ME/lumina-layers:2.0.1
+    container_name: lumina-layers
+    ports:
+      - "4174:4174"
+    volumes:
+      - /mnt/user/appdata/lumina/data/materials:/app/materials
+      - /mnt/user/appdata/lumina/data/lut-preset:/app/lut-preset
+      - /mnt/user/appdata/lumina/data/artifacts:/app/artifacts
+      - /mnt/user/appdata/lumina/data/_material_backups:/app/_material_backups
+      - /mnt/user/appdata/lumina/data/feedback:/app/feedback
+    shm_size: "1gb"
+    restart: unless-stopped
