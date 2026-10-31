@@ -1,20 +1,21 @@
 # syntax=docker/dockerfile:1.7
 # Lumina Layers v2.0.1 — 非官方容器化
-# 说明：官方不提供 Docker 支持，此文件自行构建。
-# 前端必须用 nginx 反代 /api，因为 vite.config.ts 只配了 server.proxy，
-# preview 与静态产物都不会转发请求。
+#
+# 关键约束：frontend/src/i18n/translations.ts 硬依赖仓库根的 electron/splash-text.json，
+# 所以构建上下文必须包含 electron，且构建阶段要整仓 COPY 后用 pnpm --dir frontend build。
+# 前端请求全部走 /api 前缀，由 nginx 反代到容器内 8000；vite.config.ts 没有 preview.proxy，
+# 用 preview 或纯静态服务都会 404。
 
 # ---------- 阶段一：构建前端静态产物 ----------
 FROM node:24-bookworm-slim AS frontend
 
-WORKDIR /src/frontend
+WORKDIR /src
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
-COPY frontend/package.json frontend/pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
-
-COPY frontend/ ./
-RUN pnpm build
+COPY . .
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm --dir frontend install --frozen-lockfile \
+ && pnpm --dir frontend build
 
 # ---------- 阶段二：运行时 ----------
 FROM python:3.12-slim-bookworm
@@ -34,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# 先只有依赖清单，改代码不会重装 Python 包
 COPY requirements.txt ./
 RUN python -m pip install --upgrade pip \
  && python -m pip install -r requirements.txt
